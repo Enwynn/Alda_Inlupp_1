@@ -2,18 +2,23 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+public class MyALDAQueue<E> implements ALDAQueue<E>, Iterable<E> {
 
-public class MyALDAQueue<E> implements ALDAQueue<E> {
+    private Node<E> first;
+    private final int defaultCapacity;
+    private int currentCapacity = 0;
 
-    private Node first;
+    public MyALDAQueue(int defaultCapacity) {
 
+        if (defaultCapacity <= 0) {
+            throw new IllegalArgumentException();
+        }
+        this.defaultCapacity = defaultCapacity;
+    }
 
-    private final int defaultCapacity; //Total
-    private int currentCapacity; //Size
-
-    private static class Node<T>{
+    private static class Node<T> {
         T data;
-        Node next;
+        Node<T> next;
 
         public Node(T data) {
             this.data = data;
@@ -29,84 +34,48 @@ public class MyALDAQueue<E> implements ALDAQueue<E> {
 
         if (element == null)
             throw new NullPointerException();
-
+        if (currentCapacity == defaultCapacity) {
+            throw new IllegalStateException();
+        }
         if (size() == 0) {
             first = new Node<>(element);
             currentCapacity++;
-        }
-
-        else if (size() >= 1)
+        } else if (size() >= 1)
             addNode(element, first);
     }
-    // Add to the end of the list recursively
-    private void addNode(E element, Node current) {
 
-        if (current == null) {
-            current = new Node(element);
+    private void addNode(E element, Node<E> current) {
+
+        if (current.next == null) {
+            current.next = new Node<>(element);
             currentCapacity++;
-        }
-        else {
+        } else
             addNode(element, current.next);
-        }
     }
 
 
-//    private void addIterator(E element) {
-//        if (size() == 1) {
-//            first.next = new Node(element);
-//            addedElement = true;
-//            currentCapacity++;
-//            System.out.println(size());
-//
-//        }
-//        if (!addedElement) {
-//            for(Node temp = first; temp!=null; temp=temp.next) {
-//                if (temp.next == null) {
-//                    temp.next = new Node(element);
-//                    currentCapacity++;
-//                    break;
-//                }
-//            }
-//        }
-//    }
+    public String iterateNodesForToString() {
 
-
-public String iterateNodesForToString() {
-        String toString = "";
-
-        if (first == null) {
+        if (first == null)
             return null;
+
+        StringBuilder toString = new StringBuilder("[" + first.data);
+        Node<E> temp = first;
+
+        for (int i = 1; i < size(); i++) {
+            temp = temp.next;
+            toString.append(", ").append(temp.data);
         }
+        toString.append("]");
 
-        toString += "[" + first.data + "]";
-
-        Node temp = first.next;
-            while (temp != null) {
-                toString = toString.replace("]", ", ");
-                toString += temp.data + "]";
-                temp = temp.next;
-            }
-        return toString;
-}
-
-    public MyALDAQueue(int defaultCapacity) {
-
-        if (defaultCapacity == 0) {
-            throw new IllegalArgumentException();
-        }
-        if (defaultCapacity < 0) {
-            throw new IllegalArgumentException();
-        }
-        this.defaultCapacity = defaultCapacity;
-        this.currentCapacity = 0;
+        return toString.toString();
     }
-
-
-
 
     @Override
     public void addAll(Collection<? extends E> c) {
-
+        for (E element : c) {
+            add(element);
+        }
     }
 
     @Override
@@ -114,53 +83,47 @@ public String iterateNodesForToString() {
         if (size() == 0) {
             throw new NoSuchElementException();
         }
-        Node temp = first;
-        first = null;
-        currentCapacity--;
+        Node<E> temp = first;
+        if (size() >= 1) {
+            first = first.next;
+            currentCapacity--;
+        }
 
-        return (E) temp.getData();
+        return temp.getData();
     }
 
     @Override
     public E peek() {
-        if (size() == 0) {
+        if (size() == 0)
             return null;
-        }
-        if (first == null) {
-            return null;
-        }
-        return (E) first.next;
-
+        return first.data;
     }
 
     @Override
     public void clear() {
+        if (size() == 0)
+            return;
+        if (!iterator().hasNext())
+            remove();
 
+        first.data = null;
+        first = null;
+        currentCapacity = 0;
     }
 
     @Override
     public int size() {
-
         return currentCapacity;
     }
 
     @Override
     public boolean isEmpty() {
-        if (size() == 0) {
-            return true;
-        }
-
-        else {
-            return false;
-        }
+        return size() == 0;
     }
 
     @Override
     public boolean isFull() {
-        if (currentCapacity <= defaultCapacity) {
-        return false;}
-        else {
-            return true;}
+        return currentCapacity == defaultCapacity;
     }
 
     @Override
@@ -175,20 +138,69 @@ public String iterateNodesForToString() {
 
     @Override
     public int discriminate(E e) {
-        return 0;
+        int returnValue = 0;
+
+        if (e == null)
+            throw new NullPointerException();
+        if (size() == 0) {
+            return 0;
+        }
+
+        Node<E> temp = first;
+        Node<E> tempPre = null;
+        int size = size();
+
+        for (int i = 0; i < size; i++) {
+            if (temp.data.equals(e)) {
+                if (tempPre != null) {
+                    tempPre.next = temp.next;
+                }
+                if (temp == first) {
+                    first = first.next;
+                }
+                currentCapacity--;
+                add(temp.data);
+                returnValue++;
+                if (!temp.data.equals(e)) {
+                    tempPre = temp;
+                }
+
+            } else {
+                tempPre = temp;
+            }
+            temp = temp.next;
+        }
+        return returnValue;
     }
 
     @Override
     public Iterator<E> iterator() {
-        return null;
+
+        return new Iterator<>() {
+            Node<E> current = first;
+
+            @Override
+            public boolean hasNext() {
+                return current != null;
+            }
+
+            @Override
+            public E next() {
+                if (!hasNext()) {
+                    throw new NoSuchElementException();
+                }
+                E data = current.data;
+                current = current.next;
+                return data;
+            }
+        };
     }
 
     @Override
     public String toString() {
         if (iterateNodesForToString() == null) {
             return "[]";
-        }
-        else
+        } else
             return iterateNodesForToString();
-}
+    }
 }
